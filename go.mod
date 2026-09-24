@@ -2,10 +2,13 @@ module github.com/crowquillx/silo-anime-themes
 
 go 1.26.0
 
-require github.com/crowquillx/silo-theme-songs v0.1.1
+require (
+	github.com/Silo-Server/silo-plugin-sdk v0.17.0
+	github.com/crowquillx/silo-theme-songs v0.1.2
+	google.golang.org/protobuf v1.36.11
+)
 
 require (
-	github.com/Silo-Server/silo-plugin-sdk v0.17.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
@@ -19,5 +22,4 @@ require (
 	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 	google.golang.org/grpc v1.82.1 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )

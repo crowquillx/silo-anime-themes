@@ -1257,7 +1257,7 @@ LICENSE
    limitations under the License.
 ```
 
-## github.com/crowquillx/silo-theme-songs v0.1.1
+## github.com/crowquillx/silo-theme-songs v0.1.2
 
 LICENSE
 
