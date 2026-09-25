@@ -20,6 +20,38 @@ Set `manual_refresh` to true only when you intend to run library scans yourself.
 
 Exclude these libraries from the general Theme Songs plugin using that plugin's `anime_library_ids`, or assign individual series through `exclude_items`. Neither plugin replaces another provider's owner marker or audio.
 
+## Update provider settings
+
+1. Open **Administration → Plugins → Installed**. On **AnimeThemes**, select the **Plugin settings** gear or **Configure** button.
+2. Expand **Global Configuration** and find the plugin's settings form.
+3. For Silo's standard Docker image, set **ffprobe executable** to `/usr/lib/jellyfin-ffmpeg/ffprobe`.
+4. In **Provider settings (JSON)**, add or update the `"ffmpeg"` entry to `"/usr/lib/jellyfin-ffmpeg/ffmpeg"`. Edit the existing JSON object and preserve your other entries, including `manual_mappings`, `selection_overrides`, `series_fallback`, `op` and `ed`.
+5. Select **Save config**, wait for it to succeed, then reopen the form to confirm the saved values.
+6. Run the plugin's **Preview** task and check its administrator status page for prerequisite failures before running **Download**.
+
+If **Provider settings (JSON)** is empty, this is a valid minimal value:
+
+```json
+{
+  "ffmpeg": "/usr/lib/jellyfin-ffmpeg/ffmpeg"
+}
+```
+
+That field contains the provider object itself. Use `"ffmpeg"` as the key inside it; do not wrap it in another `"provider"` object or use `"provider.ffmpeg"` as a literal key. `ffprobe` belongs in its separate **ffprobe executable** field. JSON requires double quotes and no trailing commas or comments.
+
+When editing the full `settings` JSON or a CLI configuration file, merge the same values at these locations while retaining the rest of your configuration:
+
+```json
+{
+  "ffprobe": "/usr/lib/jellyfin-ffmpeg/ffprobe",
+  "provider": {
+    "ffmpeg": "/usr/lib/jellyfin-ffmpeg/ffmpeg"
+  }
+}
+```
+
+This is a configuration fragment, not a complete replacement for [config.example.json](config.example.json). Paths must exist inside the Silo container or whichever environment runs the plugin. Silo's standard Docker image includes these Jellyfin-packaged tools, but their directory may be absent from `PATH`. For other installations, use the actual installed paths. Each plugin saves its own settings, so repeat these steps for both plugins when both are installed.
+
 ## Select mappings and audio
 
 | Provider field | Meaning |
