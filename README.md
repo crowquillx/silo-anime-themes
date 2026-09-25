@@ -6,7 +6,7 @@ An unofficial Silo plugin that maps series seasons to AniDB entries and download
 
 Add the [Crowquillx plugins catalog](https://raw.githubusercontent.com/crowquillx/crowquillx-silo-plugins/main/repository.json) in Silo Administration, Plugins, Catalog, Repositories. Install **AnimeThemes**. The [releases page](https://github.com/crowquillx/silo-anime-themes/releases) has Linux amd64 and arm64 binaries, checksums, manifests and documentation bundles. Silo's local upload accepts the raw binary. The tarball is a manual deployment bundle.
 
-The plugin needs `ffprobe`, persistent writable state, and writable media mounts visible to the Silo process. It does not need yt-dlp, FFmpeg, the Theme Songs plugin, Renkei, or an AniBridge service.
+The plugin needs `ffprobe`, FFmpeg 4.4+ with the `libmp3lame` encoder, persistent writable state, and writable media mounts visible to the Silo process. Set `provider.ffmpeg` to the executable path if FFmpeg is not on PATH. It does not need yt-dlp, the Theme Songs plugin, Renkei, or an AniBridge service.
 
 Use [config.example.json](config.example.json) for the `settings` entry:
 
@@ -31,6 +31,7 @@ Exclude these libraries from the general Theme Songs plugin using that plugin's 
 | `manual_mappings` | Map `tvdb_show:<id>:s<season>` or `tmdb_show:<id>:s<season>` to an array of AniDB IDs. An empty array disables that mapping. |
 | `selection_overrides` | Map `<Silo series ID>:s<season>` to selected `animethemes-<theme ID>-<audio ID>` identifiers. Safety filters still apply. |
 | `series_fallback` | Map Silo series IDs to explicitly selected AniDB IDs for the series page. Season downloads do not choose this implicitly. |
+| `ffmpeg` | FFmpeg executable for MP3 conversion, default `ffmpeg` on PATH. |
 | `audio_hosts` | Exact allowed audio hosts, default `a.animethemes.moe`. |
 | `anibridge_url`, `anime_lists_url` | Optional HTTPS snapshot URLs. Defaults use the published AniBridge v3 snapshot and Anime-Lists full XML. |
 
@@ -67,13 +68,15 @@ Use a dedicated series root with existing conventional `Season NN` folders. Each
 
 Both plugins use protocol 1 `.silo-theme-download.lock` and `.silo-theme-download-owner.json` sidecars in the owner directory. Do not remove them. Use one installation of each plugin, persistent state and reliable local advisory locks. Independent clustered writers and unverified network-filesystem locking are unsupported.
 
-Audio keeps its source format and goes directly into `OWNER/theme-music/`. The writer probes for audio with no video streams, stages on the destination filesystem, records a durable intent, then publishes without replacing an existing file. Manual `theme.*`, unowned audio and edited managed files are preserved. Selection changes leave obsolete files for operator review.
+New audio goes directly into `OWNER/theme-music/` as MP3. Non-MP3 sources are converted locally to 192 kbps MP3 at 44.1 kHz, preserving mono or stereo and downmixing larger channel layouts to stereo. Existing MP3 files pass through byte-for-byte; MP3 audio in another supported container is repackaged without re-encoding. The five-minute job deadline covers downloading and conversion, with an 80 MiB limit on each input and output file. Previously downloaded files keep their original format; upgrades do not replace or duplicate them.
+
+The writer probes for audio with no video streams, stages on the destination filesystem, records a durable intent, then publishes without replacing an existing file. Manual `theme.*`, unowned audio and edited managed files are preserved. Selection changes leave obsolete files for operator review.
 
 A new destination receives one intended theme first. Further selected themes wait for exact discovery. A failed owner confirmation stops further writes there. After a source reset, let Autoscan establish its new baseline and run Reconcile to request discovery of existing managed files. Back up state with the media; deleting state does not grant ownership of old files.
 
 ## Build and test
 
-Requires Go 1.26.0 or later. SDK v0.17.0 and the shared download engine are pinned in `go.mod`. Each binary includes that engine and runs independently.
+Requires Go 1.26.0 or later. Install FFmpeg with libmp3lame and libvorbis plus ffprobe for the real adapter conversion test. Set `SILO_REQUIRE_FFMPEG=1` to fail instead of skipping when tools are absent. SDK v0.17.0 and the shared download engine are pinned in `go.mod`. Each binary includes that engine and runs independently.
 
 ```sh
 go test -race ./...

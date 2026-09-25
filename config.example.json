@@ -33,6 +33,7 @@
     "mapping_update_hours": 24,
     "manual_mappings": {},
     "selection_overrides": {},
-    "series_fallback": {}
+    "series_fallback": {},
+    "ffmpeg": "/usr/bin/ffmpeg"
   }
 }

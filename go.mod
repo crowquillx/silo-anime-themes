@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/Silo-Server/silo-plugin-sdk v0.17.0
-	github.com/crowquillx/silo-theme-songs v0.1.4
+	github.com/crowquillx/silo-theme-songs v0.1.5
 	google.golang.org/protobuf v1.36.11
 )
 

@@ -38,6 +38,7 @@ type ProviderConfig struct {
 	SeriesFallback     map[string][]string `json:"series_fallback"`
 	SelectionOverrides map[string][]string `json:"selection_overrides"`
 	AudioHosts         []string            `json:"audio_hosts"`
+	FFmpeg             string              `json:"ffmpeg"`
 }
 type Adapter struct {
 	config      ProviderConfig
@@ -52,7 +53,7 @@ type Adapter struct {
 // New is the pluginapp.Factory for this binary. The parent supplies persistent
 // stateDir and validates destination ownership before publishing staged audio.
 func New(c pluginapp.Config) (pluginapp.Provider, error) {
-	var cfg ProviderConfig
+	cfg := ProviderConfig{FFmpeg: "ffmpeg"}
 	if len(c.Provider) > 0 {
 		if e := json.Unmarshal(c.Provider, &cfg); e != nil {
 			return nil, fmt.Errorf("anime provider config: %w", e)
@@ -89,7 +90,7 @@ func New(c pluginapp.Config) (pluginapp.Provider, error) {
 			return nil, e
 		}
 	}
-	return &Adapter{config: cfg, stateDir: c.StateDir, mapping: m, themes: animethemes.NewClient(nil), downloader: &provider.Downloader{Tools: provider.ToolPaths{FFprobe: c.FFprobe}, StageParent: c.StateDir, AllowedDirectHosts: cfg.AudioHosts}}, nil
+	return &Adapter{config: cfg, stateDir: c.StateDir, mapping: m, themes: animethemes.NewClient(nil), downloader: &provider.Downloader{Tools: provider.ToolPaths{FFprobe: c.FFprobe, FFmpeg: cfg.FFmpeg}, StageParent: c.StateDir, AllowedDirectHosts: cfg.AudioHosts}}, nil
 }
 func readCached(path string) ([]byte, error) {
 	f, e := os.Open(path)
@@ -342,7 +343,7 @@ func (a *Adapter) Fetch(ctx context.Context, c pluginapp.Candidate) (*provider.S
 }
 
 // Preflight lets the runtime refuse download readiness before Fetch when the
-// configured ffprobe executable is missing or unsupported.
+// configured probing or conversion tools are missing or unsupported.
 
 func (a *Adapter) Preflight(ctx context.Context, c pluginapp.Candidate) error {
 	source, err := (&provider.Resolver{AllowedDirectHosts: a.downloader.AllowedDirectHosts}).Resolve(ctx, provider.Request{Kind: provider.TV, OverrideURL: c.URL})
@@ -352,7 +353,7 @@ func (a *Adapter) Preflight(ctx context.Context, c pluginapp.Candidate) error {
 	if source.Extract || source.Format != c.Extension || c.Extract {
 		return &provider.Error{Code: provider.UnsafeURL, Op: "anime audio"}
 	}
-	_, err = a.downloader.Preflight(ctx, false)
+	_, err = a.downloader.Preflight(ctx, source)
 	return err
 }
 
