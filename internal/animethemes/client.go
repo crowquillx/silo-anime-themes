@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/crowquillx/silo-theme-songs/pkg/ratelimit"
 )
 
 const DefaultBaseURL = "https://api.animethemes.moe"
@@ -84,7 +86,6 @@ type Client struct {
 	PositiveTTL, NegativeTTL time.Duration
 	MaxPages                 int
 	mu                       sync.Mutex
-	next                     time.Time
 	cache                    map[int]cacheEntry
 }
 
@@ -96,37 +97,6 @@ func NewClient(httpClient *http.Client) *Client {
 }
 func validID(id int) bool         { return id > 0 }
 func copyAnime(a []Anime) []Anime { b := make([]Anime, len(a)); copy(b, a); return b }
-func (c *Client) wait(ctx context.Context) error {
-	c.mu.Lock()
-	now := time.Now()
-	at := c.next
-	if at.Before(now) {
-		at = now
-	}
-	c.next = at.Add(time.Second)
-	c.mu.Unlock()
-	if d := time.Until(at); d > 0 {
-		t := time.NewTimer(d)
-		defer t.Stop()
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-t.C:
-		}
-	}
-	return nil
-}
-func retryDelay(h http.Header) time.Duration {
-	if s := h.Get("Retry-After"); s != "" {
-		if n, e := strconv.Atoi(s); e == nil && n >= 0 {
-			return min(time.Duration(n)*time.Second, time.Minute)
-		}
-		if t, e := http.ParseTime(s); e == nil {
-			return min(max(time.Until(t), 0), time.Minute)
-		}
-	}
-	return 2 * time.Second
-}
 func (c *Client) request(ctx context.Context, u string) (struct {
 	Anime []Anime `json:"anime"`
 	Links struct {
@@ -140,9 +110,6 @@ func (c *Client) request(ctx context.Context, u string) (struct {
 		} `json:"links"`
 	}
 	for attempt := 0; attempt < 3; attempt++ {
-		if e := c.wait(ctx); e != nil {
-			return page, e
-		}
 		requestCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		req, e := http.NewRequestWithContext(requestCtx, http.MethodGet, u, nil)
 		if e != nil {
@@ -150,42 +117,35 @@ func (c *Client) request(ctx context.Context, u string) (struct {
 			return page, e
 		}
 		req.Header.Set("Accept", "application/json")
+		req.Header.Set("User-Agent", ratelimit.UserAgent)
 		client := c.HTTP
 		if client == nil {
 			client = &http.Client{Timeout: 15 * time.Second}
 		}
 		copyClient := *client
+		copyClient.Transport = ratelimit.Wrap(client.Transport, ratelimit.ExternalInterval)
 		copyClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 		resp, e := copyClient.Do(req)
 		if e != nil {
 			cancel()
-			return page, e
-		}
-		if resp.Header.Get("X-RateLimit-Remaining") == "0" {
-			if reset, e := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); e == nil {
-				if reset > 1e12 {
-					reset /= 1000
-				}
-				until := time.Unix(reset, 0)
-				if until.After(time.Now()) {
-					c.mu.Lock()
-					if bounded := time.Now().Add(min(time.Until(until), time.Minute)); bounded.After(c.next) {
-						c.next = bounded
-					}
-					c.mu.Unlock()
-				}
+			if errors.Is(e, ratelimit.ErrDeferred) {
+				return page, errors.New("AnimeThemes rate limit exceeds request budget; retry later")
 			}
+			return page, e
 		}
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
 			io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 			resp.Body.Close()
 			cancel()
-			d := retryDelay(resp.Header)
-			c.mu.Lock()
-			if until := time.Now().Add(d); until.After(c.next) {
-				c.next = until
+			if attempt == 2 {
+				return page, fmt.Errorf("AnimeThemes HTTP %d; retry later", resp.StatusCode)
 			}
-			c.mu.Unlock()
+			budgetCtx, budgetCancel := context.WithTimeout(ctx, 15*time.Second)
+			deferred := ratelimit.Waiting(budgetCtx, req.URL)
+			budgetCancel()
+			if deferred {
+				return page, fmt.Errorf("AnimeThemes HTTP %d; retry later", resp.StatusCode)
+			}
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {

@@ -116,6 +116,30 @@ func TestRateRetryAndUnsafePagination(t *testing.T) {
 	}
 }
 
+func TestRateCooldownSurvivesNewAnimeClient(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Retry-After", "600")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+	first := NewClient(srv.Client())
+	first.BaseURL = srv.URL
+	if _, err := first.LookupAniDB(context.Background(), []int{9304}); err == nil || !strings.Contains(err.Error(), "retry later") {
+		t.Fatalf("first throttle: %v", err)
+	}
+	second := NewClient(srv.Client())
+	second.BaseURL = srv.URL
+	started := time.Now()
+	if _, err := second.LookupAniDB(context.Background(), []int{9305}); err == nil || !strings.Contains(err.Error(), "retry later") {
+		t.Fatalf("second throttle: %v", err)
+	}
+	if calls.Load() != 1 || time.Since(started) > time.Second {
+		t.Fatalf("new client sent request during cooldown: calls=%d elapsed=%s", calls.Load(), time.Since(started))
+	}
+}
+
 func TestLiveAnimeThemesAniDB(t *testing.T) {
 	if os.Getenv("LIVE_ANIMETHEMES") != "1" {
 		t.Skip("set LIVE_ANIMETHEMES=1 for upstream availability check")

@@ -51,6 +51,12 @@ Mappings include provenance and a snapshot digest. The JoJo fixtures cover seaso
 
 The selected set represents the mapped season, including its cours. It does not adapt to only the downloaded episodes. Silo plays the season's theme set; it does not switch themes at episode-range boundaries.
 
+## Request pacing
+
+AnimeThemes API requests start at most once per second, below its [documented 90 requests per minute](https://github.com/AnimeThemes/animethemes-api-docs/blob/main/docs/jsonapi/intro/ratelimiting/index.md). Audio downloads and mapping snapshot requests use the same one-second minimum per origin, including redirected requests. Silo catalog reads start at most twice per second per plugin process. Cached API results and the daily mapping refresh avoid unnecessary requests.
+
+HTTP requests share per-origin cooldowns across tasks and newly configured clients within the plugin process. `Retry-After` seconds and HTTP dates are honored in full. Exhausted quota headers honor the reset timestamp, including AnimeThemes’ millisecond timestamps. A long cooldown defers work instead of sending an early retry. Requests without a retry header use conservative backoff; attempts and deadlines remain bounded. A failed snapshot update retains the last valid mapping. Restarting the plugin resets in-memory cooldowns.
+
 ## Destination rules
 
 Use a dedicated series root with existing conventional `Season NN` folders. Each season destination must contain that season's authoritative episode files and no other series or season. One episode subdirectory below the season is supported. Unknown videos, missing files, unclassified extras, ambiguous copies, symlinks and conflicting observed roots refuse placement. Specials need an existing exclusive `Season 00` directory and an unambiguous mapping.
