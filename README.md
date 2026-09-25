@@ -1,130 +1,43 @@
-# AnimeThemes
+# Silo AnimeThemes
 
-An unofficial Silo plugin that maps series seasons to AniDB entries and downloads opening and ending audio from AnimeThemes. AniBridge v3 is the primary mapping source. Anime-Lists supplies fallback mappings when the primary source has no usable match. Ambiguous mappings require an explicit selection.
+Downloads anime opening and ending themes from AnimeThemes and saves them as MP3 in the matching season's `theme-music` folder. AniBridge and Anime-Lists map Silo seasons to anime entries.
 
-## Install and configure
+Part of [Crowquillx Silo Plugins](https://github.com/crowquillx/crowquillx-silo-plugins#install). Supports Linux amd64 and arm64.
 
-Add the [Crowquillx plugins catalog](https://raw.githubusercontent.com/crowquillx/crowquillx-silo-plugins/main/repository.json) in Silo Administration, Plugins, Catalog, Repositories. Install **AnimeThemes**. The [releases page](https://github.com/crowquillx/silo-anime-themes/releases) has Linux amd64 and arm64 binaries, checksums, manifests and documentation bundles. Silo's local upload accepts the raw binary. The tarball is a manual deployment bundle.
+## Install
 
-The plugin needs `ffprobe`, FFmpeg 4.4+ with the `libmp3lame` encoder, persistent writable state, and writable media mounts visible to the Silo process. Set `provider.ffmpeg` to the executable path if FFmpeg is not on PATH. It does not need yt-dlp, the Theme Songs plugin, Renkei, or an AniBridge service.
+1. Add the [Crowquillx catalog](https://github.com/crowquillx/crowquillx-silo-plugins#install) in **Administration → Plugins → Catalog** and install **AnimeThemes**.
+2. In **Installed**, open the plugin's **Configure** button or settings gear, then **Global Configuration**. Set the Silo URL, an administrator API key, primary profile ID, selected libraries, persistent state directory and writable media roots. Use [config.example.json](config.example.json) as a reference.
+3. Set **ffprobe executable** to the installed ffprobe path. In **Provider settings (JSON)**, set `ffmpeg` to the FFmpeg path, keeping your existing mappings and selections. Silo's Docker image uses `/usr/lib/jellyfin-ffmpeg/ffprobe` and `/usr/lib/jellyfin-ffmpeg/ffmpeg`.
+4. Select **Save config**, then run **Preview** and check the plugin's status page.
+5. Enable the plugin's **themes** Autoscan source with poll delivery and no path rewrites. Allow two polls, then disable **Preview only** and run **Download**. For manual scans, enable **Manual library scans** instead and run **Reconcile** after scanning.
 
-Use [config.example.json](config.example.json) for the `settings` entry:
-
-1. Supply the Silo HTTP origin, a dedicated administrator's unscoped API key, its primary profile ID, selected library IDs and a persistent state directory. Silo stores the API key as a declared secret.
-2. Set `destinations.allowed_roots` to writable plugin-local roots. If server paths differ, provide reversible `path_mappings` with `server` and `local` prefixes. Both plugins must reach the same physical directory for owner locks to coordinate.
-3. Keep `preview_only` enabled. Bind and run Preview, then inspect the administrator status page. It shows the mapped source, selected audio, owner destination and any refusal.
-4. Enable the plugin's `themes` Autoscan source with poll delivery, no connection credentials and identity path rewrites. Enable Autoscan globally, use a polling interval of at least 60 seconds, and allow two polls for the baseline handshake.
-5. Set `preview_only` to false and run Download. Configure a daily task interval in Silo if desired. Restart Silo if its task-binding screen requests it.
-
-Set `manual_refresh` to true only when you intend to run library scans yourself. After scanning, run Reconcile. Neither an emitted scan event nor a downloaded file is reported as discovered until its exact title and owner appear in the native theme set.
-
-Exclude these libraries from the general Theme Songs plugin using that plugin's `anime_library_ids`, or assign individual series through `exclude_items`. Neither plugin replaces another provider's owner marker or audio.
-
-## Update provider settings
-
-1. Open **Administration → Plugins → Installed**. On **AnimeThemes**, select the **Plugin settings** gear or **Configure** button.
-2. Expand **Global Configuration** and find the plugin's settings form.
-3. For Silo's standard Docker image, set **ffprobe executable** to `/usr/lib/jellyfin-ffmpeg/ffprobe`.
-4. In **Provider settings (JSON)**, add or update the `"ffmpeg"` entry to `"/usr/lib/jellyfin-ffmpeg/ffmpeg"`. Edit the existing JSON object and preserve your other entries, including `manual_mappings`, `selection_overrides`, `series_fallback`, `op` and `ed`.
-5. Select **Save config**, wait for it to succeed, then reopen the form to confirm the saved values.
-6. Run the plugin's **Preview** task and check its administrator status page for prerequisite failures before running **Download**.
-
-If **Provider settings (JSON)** is empty, this is a valid minimal value:
+For an empty **Provider settings (JSON)** field, the Docker tool setting is:
 
 ```json
-{
-  "ffmpeg": "/usr/lib/jellyfin-ffmpeg/ffmpeg"
-}
+{"ffmpeg": "/usr/lib/jellyfin-ffmpeg/ffmpeg"}
 ```
 
-That field contains the provider object itself. Use `"ffmpeg"` as the key inside it; do not wrap it in another `"provider"` object or use `"provider.ffmpeg"` as a literal key. `ffprobe` belongs in its separate **ffprobe executable** field. JSON requires double quotes and no trailing commas or comments.
+This field contains the provider object only; `ffprobe` has its own field. For other installations, use paths available to the plugin. Conversion requires FFmpeg 4.4+ with `libmp3lame` and ffprobe.
 
-When editing the full `settings` JSON or a CLI configuration file, merge the same values at these locations while retaining the rest of your configuration:
+Use a dedicated series folder with `Season NN` subfolders. Keep the state directory across upgrades.
 
-```json
-{
-  "ffprobe": "/usr/lib/jellyfin-ffmpeg/ffprobe",
-  "provider": {
-    "ffmpeg": "/usr/lib/jellyfin-ffmpeg/ffmpeg"
-  }
-}
-```
+## Build
 
-This is a configuration fragment, not a complete replacement for [config.example.json](config.example.json). Paths must exist inside the Silo container or whichever environment runs the plugin. Silo's standard Docker image includes these Jellyfin-packaged tools, but their directory may be absent from `PATH`. For other installations, use the actual installed paths. Each plugin saves its own settings, so repeat these steps for both plugins when both are installed.
-
-## Select mappings and audio
-
-| Provider field | Meaning |
-| --- | --- |
-| `mapping_update_hours` | Snapshot refresh interval, default 24 hours. Failed updates retain the last valid snapshot. |
-| `op`, `ed` | Include openings and endings. Both default to enabled. |
-| `all_distinct` | Include every distinct selected theme, rather than one preferred theme per anime entry. |
-| `allow_spoiler`, `allow_nsfw`, `allow_overlap` | Explicit opt-ins. All are false by default. |
-| `manual_mappings` | Map `tvdb_show:<id>:s<season>` or `tmdb_show:<id>:s<season>` to an array of AniDB IDs. An empty array disables that mapping. |
-| `selection_overrides` | Map `<Silo series ID>:s<season>` to selected `animethemes-<theme ID>-<audio ID>` identifiers. Safety filters still apply. |
-| `series_fallback` | Map Silo series IDs to explicitly selected AniDB IDs for the series page. Season downloads do not choose this implicitly. |
-| `ffmpeg` | FFmpeg executable for MP3 conversion, default `ffmpeg` on PATH. |
-| `audio_hosts` | Exact allowed audio hosts, default `a.animethemes.moe`. |
-| `anibridge_url`, `anime_lists_url` | Optional HTTPS snapshot URLs. Defaults use the published AniBridge v3 snapshot and Anime-Lists full XML. |
-
-For example, an explicit season mapping can include both cours:
-
-```json
-{
-  "manual_mappings": {
-    "tvdb_show:262954:s2": ["10206", "10835"]
-  },
-  "op": true,
-  "ed": true,
-  "all_distinct": true
-}
-```
-
-Mappings include provenance and a snapshot digest. The JoJo fixtures cover season 2's two anime entries and season 5's three cours. Mapping fixtures do not imply that every corresponding audio asset is currently available. API lookups use exact AniDB resource IDs, pagination, bounded caching and rate-aware retries. Selection deduplicates stable theme/audio identities.
-
-The selected set represents the mapped season, including its cours. It does not adapt to only the downloaded episodes. Silo plays the season's theme set; it does not switch themes at episode-range boundaries.
-
-## Request pacing
-
-AnimeThemes API requests start at most once per second, below its [documented 90 requests per minute](https://github.com/AnimeThemes/animethemes-api-docs/blob/main/docs/jsonapi/intro/ratelimiting/index.md). Audio downloads and mapping snapshot requests use the same one-second minimum per origin, including redirected requests. Silo catalog reads start at most twice per second per plugin process. Cached API results and the daily mapping refresh avoid unnecessary requests.
-
-HTTP requests share per-origin cooldowns across tasks and newly configured clients within the plugin process. `Retry-After` seconds and HTTP dates are honored in full. Exhausted quota headers honor the reset timestamp, including AnimeThemes’ millisecond timestamps. A long cooldown defers work instead of sending an early retry. Requests without a retry header use conservative backoff; attempts and deadlines remain bounded. A failed snapshot update retains the last valid mapping. Restarting the plugin resets in-memory cooldowns.
-
-## Destination rules
-
-Use a dedicated series root with existing conventional `Season NN` folders. Each season destination must contain that season's authoritative episode files and no other series or season. One episode subdirectory below the season is supported. Unknown videos, missing files, unclassified extras, ambiguous copies, symlinks and conflicting observed roots refuse placement. Specials need an existing exclusive `Season 00` directory and an unambiguous mapping.
-
-`single_season_flat_fallback` is disabled by default. If enabled, one populated regular season with no other season or specials can use its validated series root. Preview labels it **series-owned theme, inherited by season/episodes**. The series page plays it too. Every normal run rechecks this proof. A later second season freezes the managed fallback as stale; files are never silently deleted or relocated.
-
-`destination_overrides` uses `library_id/item_id/season/copy_root` keys and server-path values. Overrides still need complete inventory and on-disk checks. They cannot make flat mixed-season media support separate season themes.
-
-Both plugins use protocol 1 `.silo-theme-download.lock` and `.silo-theme-download-owner.json` sidecars in the owner directory. Do not remove them. Use one installation of each plugin, persistent state and reliable local advisory locks. Independent clustered writers and unverified network-filesystem locking are unsupported.
-
-New audio goes directly into `OWNER/theme-music/` as MP3. Non-MP3 sources are converted locally to 192 kbps MP3 at 44.1 kHz, preserving mono or stereo and downmixing larger channel layouts to stereo. Existing MP3 files pass through byte-for-byte; MP3 audio in another supported container is repackaged without re-encoding. The five-minute job deadline covers downloading and conversion, with an 80 MiB limit on each input and output file. Previously downloaded files keep their original format; upgrades do not replace or duplicate them.
-
-The writer probes for audio with no video streams, stages on the destination filesystem, records a durable intent, then publishes without replacing an existing file. Manual `theme.*`, unowned audio and edited managed files are preserved. Selection changes leave obsolete files for operator review.
-
-A new destination receives one intended theme first. Further selected themes wait for exact discovery. A failed owner confirmation stops further writes there. After a source reset, let Autoscan establish its new baseline and run Reconcile to request discovery of existing managed files. Back up state with the media; deleting state does not grant ownership of old files.
-
-## Build and test
-
-Requires Go 1.26.0 or later. Install FFmpeg with libmp3lame and libvorbis plus ffprobe for the real adapter conversion test. Set `SILO_REQUIRE_FFMPEG=1` to fail instead of skipping when tools are absent. SDK v0.17.0 and the shared download engine are pinned in `go.mod`. Each binary includes that engine and runs independently.
+Requires Go 1.26 or newer. FFmpeg and ffprobe are needed for the audio conversion tests.
 
 ```sh
-go test -race ./...
-go vet ./...
+make test
 make build
-bin/plugin manifest
-bin/plugin preview /path/to/private-config.json
-make build-all
 ```
 
-The same CLI accepts `sync` and `reconcile`. Keep credential files outside the repository. CI uses controlled mapping and API fixtures. Live provider availability is checked separately. [docs/compatibility.json](docs/compatibility.json) records the tested API contract and owner coordination protocol.
+The binary is `bin/plugin`.
 
-## Sources and license
+## Acknowledgments
 
-MIT for this plugin. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Mapping and selection code is an independent implementation; it does not redistribute Renkei code.
+- [AnimeThemes](https://animethemes.moe/) for theme metadata and audio.
+- [AniBridge](https://github.com/anibridge/anibridge-mappings) and [Anime-Lists](https://github.com/Anime-Lists/anime-lists) for anime mappings.
+- [FFmpeg](https://ffmpeg.org/) for audio conversion.
+- [Silo plugin SDK](https://github.com/Silo-Server/silo-plugin-sdk) for Silo integration.
 
-Runtime data sources are [AniBridge mappings](https://github.com/anibridge/anibridge-mappings), [Anime-Lists](https://github.com/Anime-Lists/anime-lists), and [AnimeThemes](https://animethemes.moe/). Mapping snapshots and theme audio are fetched at runtime and are not bundled. This plugin is independent of Silo Server and those projects.
-
-See [validation results](docs/validation.md) for live checks and provider availability limits.
+[MIT license](LICENSE). Dependency licenses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
