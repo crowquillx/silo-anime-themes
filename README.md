@@ -11,7 +11,7 @@ Part of [Crowquillx Silo Plugins](https://github.com/crowquillx/crowquillx-silo-
 3. Create a key in **Administration → API Keys**.
 4. In **Installed**, open the plugin's settings, then **Global Configuration**. Paste the key into **Silo administrator API key** and select **Save config**.
 5. Run **Preview AnimeThemes** in **Scheduled Tasks**, then open **AnimeThemes** in the admin menu. The page lists your libraries with their IDs.
-6. Enter your anime series libraries in **Selected library IDs**, for example `["1"]`, and save. Run Preview again and check the planned downloads.
+6. Enter your anime series libraries in **Selected library IDs**, for example `1, 3`, and save. Run Preview again and check the planned downloads.
 7. Turn on **Manual library scans**, or enable the plugin's **themes** source in Autoscan with poll delivery and no path rewrites.
 8. Turn off **Preview only** and run **Download AnimeThemes**. With manual scans, run **Reconcile AnimeThemes** after the next library scan.
 
