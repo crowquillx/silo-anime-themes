@@ -53,7 +53,7 @@ type Adapter struct {
 // New is the pluginapp.Factory for this binary. The parent supplies persistent
 // stateDir and validates destination ownership before publishing staged audio.
 func New(c pluginapp.Config) (pluginapp.Provider, error) {
-	cfg := ProviderConfig{FFmpeg: "ffmpeg"}
+	cfg := ProviderConfig{FFmpeg: provider.BundledTool("ffmpeg")}
 	if len(c.Provider) > 0 {
 		if e := json.Unmarshal(c.Provider, &cfg); e != nil {
 			return nil, fmt.Errorf("anime provider config: %w", e)
@@ -90,7 +90,7 @@ func New(c pluginapp.Config) (pluginapp.Provider, error) {
 			return nil, e
 		}
 	}
-	return &Adapter{config: cfg, stateDir: c.StateDir, mapping: m, themes: animethemes.NewClient(nil), downloader: &provider.Downloader{Tools: provider.ToolPaths{FFprobe: c.FFprobe, FFmpeg: cfg.FFmpeg}, StageParent: c.StateDir, AllowedDirectHosts: cfg.AudioHosts}}, nil
+	return &Adapter{config: cfg, stateDir: c.StateDir, mapping: m, themes: animethemes.NewClient(nil), downloader: &provider.Downloader{Tools: provider.ToolPaths{FFprobe: provider.DefaultTool(c.FFprobe, "ffprobe"), FFmpeg: provider.DefaultTool(cfg.FFmpeg, "ffmpeg")}, StageParent: c.StateDir, AllowedDirectHosts: cfg.AudioHosts}}, nil
 }
 func readCached(path string) ([]byte, error) {
 	f, e := os.Open(path)

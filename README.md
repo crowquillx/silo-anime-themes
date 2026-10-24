@@ -6,21 +6,35 @@ Part of [Crowquillx Silo Plugins](https://github.com/crowquillx/crowquillx-silo-
 
 ## Install
 
-1. Add the [Crowquillx catalog](https://github.com/crowquillx/crowquillx-silo-plugins#install) in **Administration → Plugins → Catalog** and install **AnimeThemes**.
-2. In **Installed**, open the plugin's **Configure** button or settings gear, then **Global Configuration**. Set the Silo URL, an administrator API key, primary profile ID, selected libraries, persistent state directory and writable media roots. Use [config.example.json](config.example.json) as a reference.
-3. Set **ffprobe executable** to the installed ffprobe path. In **Provider settings (JSON)**, set `ffmpeg` to the FFmpeg path, keeping your existing mappings and selections. Silo's Docker image uses `/usr/lib/jellyfin-ffmpeg/ffprobe` and `/usr/lib/jellyfin-ffmpeg/ffmpeg`.
-4. Select **Save config**, then run **Preview** and check the plugin's status page.
-5. Enable the plugin's **themes** Autoscan source with poll delivery and no path rewrites. Allow two polls, then disable **Preview only** and run **Download**. For manual scans, enable **Manual library scans** instead and run **Reconcile** after scanning.
+1. In **Administration → Plugins → Catalog**, add the [Crowquillx catalog](https://github.com/crowquillx/crowquillx-silo-plugins#install) and install **AnimeThemes**.
+2. Restart Silo. Silo adds plugin tasks to **Scheduled Tasks** only when it starts.
+3. Create a key in **Administration → API Keys**.
+4. In **Installed**, open the plugin's settings, then **Global Configuration**. Paste the key into **Silo administrator API key** and select **Save config**.
+5. Run **Preview AnimeThemes** in **Scheduled Tasks**, then open **AnimeThemes** in the admin menu. The page lists your libraries with their IDs.
+6. Enter your anime series libraries in **Selected library IDs**, for example `["1"]`, and save. Run Preview again and check the planned downloads.
+7. Turn on **Manual library scans**, or enable the plugin's **themes** source in Autoscan with poll delivery and no path rewrites.
+8. Turn off **Preview only** and run **Download AnimeThemes**. With manual scans, run **Reconcile AnimeThemes** after the next library scan.
 
-For an empty **Provider settings (JSON)** field, the Docker tool setting is:
+Silo runs each plugin task when it starts. To run them on a schedule instead, edit their triggers in **Scheduled Tasks**.
 
-```json
-{"ffmpeg": "/usr/lib/jellyfin-ffmpeg/ffmpeg"}
-```
+Silo writes themes into your media folders, so they must be writable. Silo's Docker Compose file mounts media read-only. Remove `:ro` from the media volume and recreate the container.
 
-This field contains the provider object only; `ffprobe` has its own field. For other installations, use paths available to the plugin. Conversion requires FFmpeg 4.4+ with `libmp3lame` and ffprobe.
+If Theme Songs also runs, add the same library IDs to its **Anime-managed library IDs** so it leaves these libraries to AnimeThemes.
 
-Use a dedicated series folder with `Season NN` subfolders. Keep the state directory across upgrades.
+### Optional settings
+
+Leave these empty unless your setup differs from Silo's Docker image.
+
+| Setting | Default |
+| --- | --- |
+| Silo base URL | Silo's internal API address |
+| Primary profile ID | The API key owner's primary profile |
+| Persistent state directory | `plugin-state/dev.crowquillx.anime-themes` in `SILO_PLUGIN_CACHE_DIR`, which is `/var/lib/silo/plugins` in Docker. Required when that variable is unset. |
+| Writable roots and path mappings | The selected libraries' folders |
+| ffprobe executable | `/usr/lib/jellyfin-ffmpeg/ffprobe`, then `ffprobe` on PATH |
+| Provider `ffmpeg` | `/usr/lib/jellyfin-ffmpeg/ffmpeg`, then `ffmpeg` on PATH |
+
+Use a dedicated series folder with `Season NN` or `Specials` subfolders. Media files may be symlinks, but the plugin refuses other symlinks inside a media folder.
 
 ## Build
 
