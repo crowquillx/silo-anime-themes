@@ -29,3 +29,7 @@ Regression tests cover missing conversion tools before a download, failed and ov
 ## Hosted tasks and setup defaults in v0.1.8
 
 This release takes the shared runtime from Theme Songs v0.1.10; its validation report has the details. On 2026-10-24, Theme Songs v0.1.7 failed every hosted Preview on a 37-movie library because the server gives each scheduled-task `Run` call a 10-second deadline. The shared runtime now runs tasks in the background and returns a `running` report before that deadline. It accepts symlinked catalog media files, defaults the Silo URL, profile, state directory, writable roots and FFmpeg paths, and lists the available libraries when none are selected. On an 876-series anime library, a hosted Preview with only an API key and library ID took nine minutes. `Specials` folders now count as season 0; before that change they blocked 70 series. The remaining refusals on that library came from its read-only media mount. AnimeThemes audio comes from direct downloads, so it does not use the managed yt-dlp and Deno tools.
+
+## Shared runtime from Theme Songs v0.1.11
+
+On 2026-10-24, a hosted Preview of the 876-series library showed live progress, and its summary counted all 2,211 season targets while the item list kept 1,000 rows. Theme Songs' validation report covers deleted upgrade files, logging and single-item revalidation.

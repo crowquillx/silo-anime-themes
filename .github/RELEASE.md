@@ -1,11 +1,16 @@
-AnimeThemes v0.1.8
+AnimeThemes v0.1.9
 
-Fixes tasks that failed on real libraries with "Silo read rate limit exceeds remaining request budget". Silo allows each scheduled task call 10 seconds, and reading a library takes longer. Preview, Download and Reconcile now continue in the background after that call returns; the status page shows the result. A second trigger joins the task already running.
+Takes the shared runtime from Theme Songs v0.1.11.
 
-Setup needs only an API key. The Silo URL, profile, state directory and writable roots now have defaults. FFmpeg and ffprobe default to Silo's Docker paths under `/usr/lib/jellyfin-ffmpeg`, falling back to PATH. Without library IDs, Preview lists your libraries with their IDs. The README install steps now cover the server restart Silo needs before plugin tasks appear and the read-only media mount in Silo's Docker Compose file.
+Series whose Sonarr release was upgraded were refused as "unclassified file or extra". Silo still lists the deleted file. The plugin now ignores listed files that are gone from disk, and it names any file it still cannot classify.
 
-Series with a `Specials` folder, the Sonarr and Jellyfin name for season 0, are no longer refused as an unsupported layout. On a test library this blocked 70 of 876 series. Library reads are four times faster; a preview of 876 series takes about nine minutes instead of 45.
+The status page shows progress while a task runs and keeps the last result visible. A summary counts every season, and the item list shows problems and planned downloads first when it reaches its 1,000-row limit. On an 876-series library the summary covers all 2,211 season targets.
 
-Series whose episode files are symlinks, as in debrid and rclone libraries, are no longer refused. Other symlinks are still refused, and the message names the file.
+The plugin now logs to Silo's container output: each run's start and result, each download, and one line per kind of problem. Set `SILO_THEME_LOG_LEVEL` to change the level.
+
+Fewer requests per run:
+- While Preview only is on, Preview and Download share one run.
+- Reconcile no longer reads the whole library or looks up themes.
+- Before each download is published, the plugin rechecks only that series instead of the whole library. On an 876-series library that check took nine minutes per download.
 
 Linux amd64 and arm64 binaries and checksums are attached.
