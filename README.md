@@ -1,5 +1,7 @@
 # Silo AnimeThemes
 
+> **AnimeThemes is now part of [Theme Songs](https://github.com/crowquillx/silo-theme-songs) 0.2.0.** Install Theme Songs, then uninstall this plugin. Until you do, Theme Songs leaves anime libraries to this plugin. Afterwards, Theme Songs copies this plugin's state from its default state directory and keeps managing the themes it downloaded. Re-enter any manual mappings or overrides under Theme Songs' **AnimeThemes settings (JSON)**. This repository receives no further releases.
+
 Downloads anime opening and ending themes from AnimeThemes and saves them as MP3 in the matching season's `theme-music` folder. AniBridge and Anime-Lists map Silo seasons to anime entries.
 
 Part of [Crowquillx Silo Plugins](https://github.com/crowquillx/crowquillx-silo-plugins#install). Supports Linux amd64 and arm64.
